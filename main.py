@@ -1,3 +1,4 @@
+from datetime import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 from tabulate import tabulate
@@ -11,7 +12,7 @@ import re
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-# Initialize colorama
+# Initialize colorama /to enable ANSI escape sequences for colored text
 colorama.init()
 
 # Color codes for menu
@@ -52,7 +53,6 @@ def most_common_first_names(collection):
     common_names.columns = ['First Name', 'Count']
     print(f"{OUTPUT_COLOR}Most common first names:")
     display_table(common_names)
-
     # Pie chart of top 5 most common first names
     common_names[:5].plot(kind='pie', y='Count', labels=common_names['First Name'][:5], autopct='%1.1f%%')
     plt.title("Top 5 Most Common First Names")
@@ -101,7 +101,6 @@ def count_last_name_occurrences(collection):
     last_name_counts.columns = ['Last Name', 'Occurrences']
     print(f"{OUTPUT_COLOR}Occurrences of individuals with the same last name:")
     display_table(last_name_counts)
-
     # Bar chart of last name occurrences
     last_name_counts.plot(kind='bar', x='Last Name', y='Occurrences')
     plt.title("Occurrences of Individuals with the Same Last Name")
@@ -125,7 +124,6 @@ def individuals_by_decade(collection):
     individuals_per_decade.columns = ['Decade', 'Count']
     print(f"{OUTPUT_COLOR}Number of individuals born in each decade:")
     display_table(individuals_per_decade)
-
     # Line graph of individuals by decade
     individuals_per_decade.plot(kind='line', x='Decade', y='Count', marker='o')
     plt.title("Number of Individuals Born in Each Decade")
@@ -139,7 +137,6 @@ def filter_older_than_50(collection):
     df = pd.DataFrame(data)
     df['birth_date'] = pd.to_datetime(df['birth_date'])
     df['age'] = current_year - df['birth_date'].dt.year
-
     filtered_data = df[df['age'] > 50]
     print(f"{OUTPUT_COLOR}Filtered data including only individuals older than 50 years:")
     display_table(filtered_data)
@@ -150,15 +147,12 @@ def youngest_oldest_individuals_by_city(collection):
     df['birth_date'] = pd.to_datetime(df['birth_date'])
     df['age'] = pd.to_datetime('today').year - df['birth_date'].dt.year
     grouped_data = df.groupby('city')
-
     youngest = df.loc[grouped_data['age'].idxmin()]
     oldest = df.loc[grouped_data['age'].idxmax()]
-
     print(f"{OUTPUT_COLOR}Youngest individuals by city:")
     display_table(youngest)
     print(f"{OUTPUT_COLOR}Oldest individuals by city:")
     display_table(oldest)
-
     # Bar chart of youngest and oldest individuals by city
     youngest_oldest_data = pd.concat([youngest, oldest])
     display_graph(youngest_oldest_data, 'city', 'age', 'bar')
@@ -179,7 +173,13 @@ def add_new_user_gui(collection):
         return bool(re.match(r"^\+972\d{9}$", phone))
 
     def is_valid_birth_date(birth_date):
-        return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", birth_date))
+        if not re.match(r"^(?!0000)[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$", birth_date):
+            return False
+        year, month, day = map(int, birth_date.split('-'))
+        current_year = datetime.now().year
+        if year > current_year:
+            return False
+        return True
 
     def is_valid_city(city):
         return bool(re.match(r"^[a-zA-Z\s]+$", city))
@@ -236,20 +236,20 @@ def add_new_user_gui(collection):
 
         collection.insert_one(user_data)
         messagebox.showinfo("Success", "User added successfully.")
-        root.destroy()  # Close the GUI window after adding the user
+        root.destroy()  # Close window after success
 
     root = tk.Tk()
     root.title("Add New User")
     root.geometry("450x450")
 
-    # Styling the GUI with ttk theme
+    # styling using ttk
     style = ttk.Style()
     style.configure('TLabel', font=('Arial', 16))
     style.configure('TEntry', font=('Arial', 16))
     style.configure('TButton', font=('Arial', 16))
 
 
-    # GUI elements for user input
+    # GUI - user inputs
     label_first_name = tk.Label(root, text="First Name:")
     label_first_name.pack()
     entry_first_name = tk.Entry(root)
@@ -293,31 +293,24 @@ def add_new_user_gui(collection):
 
     root.mainloop()
 
-# New function to delete a user by ID
+# delete user by id
 def delete_user_by_id(collection):
     user_id_str = input(f"{PROMPT_COLOR}Enter user ID: {RESET_COLOR}")
-
     try:
         user_id = bson.ObjectId(user_id_str)
     except bson.errors.InvalidId:
-        print(f"{OUTPUT_COLOR}Invalid user ID format. Please enter a valid hexadecimal ID.")
+        print(f"{OUTPUT_COLOR}Invalid user ID format. Please enter a valid objectID.")
         return
-
-    # Find the user in the collection by ID
     user = collection.find_one({"_id": user_id})
-
     if user:
-        # Extract the first name and last name of the user
         first_name = user.get('first_name', 'Unknown')
         last_name = user.get('last_name', 'Unknown')
-
-        # Delete the user with the given ID
         collection.delete_one({"_id": user_id})
         print(f"{OUTPUT_COLOR}{first_name} {last_name} with ID {user_id} has been deleted.")
     else:
         print(f"{OUTPUT_COLOR}User with ID {user_id} not found.")
 
-# New function to get a user by ID
+# get user by id
 def get_user_by_id(collection):
     user_id_str = input(f"{PROMPT_COLOR}Enter user ID: {RESET_COLOR}")
 
@@ -326,20 +319,15 @@ def get_user_by_id(collection):
     except bson.errors.InvalidId:
         print(f"{OUTPUT_COLOR}Invalid user ID format. Please enter a valid hexadecimal ID.")
         return
-
-    # Find the user in the collection by ID
     user = collection.find_one({"_id": user_id})
-
     if user:
-        # Convert the user data to a pandas DataFrame
         user_df = pd.DataFrame([user])
-
-        # Print the user information using tabulate
         print(f"{OUTPUT_COLOR}User information for ID {user_id}:")
         display_table(user_df)
     else:
         print(f"{OUTPUT_COLOR}User with ID {user_id} not found.")
 
+#update user by id
 def update_user_by_id(collection, user_id):
     def is_valid_first_name(first_name):
         return bool(re.match("^[a-zA-Z]+$", first_name))
@@ -357,7 +345,13 @@ def update_user_by_id(collection, user_id):
         return bool(re.match(r"^\+972\d{9}$", phone))
 
     def is_valid_birth_date(birth_date):
-        return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", birth_date))
+        if not re.match(r"^(?!0000)[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$", birth_date):
+            return False
+        year, month, day = map(int, birth_date.split('-'))
+        current_year = datetime.now().year
+        if year > current_year:
+            return False
+        return True
 
     def is_valid_city(city):
         return bool(re.match(r"^[a-zA-Z\s]+$", city))
@@ -373,7 +367,7 @@ def update_user_by_id(collection, user_id):
             "city": entry_city.get()
         }
 
-        # Perform validation checks on the updated data
+        #validation
         if not entry_first_name.get() or not entry_last_name.get() or not entry_username.get() or not entry_email.get() or not entry_phone.get() or not entry_birth_date.get() or not entry_city.get():
             messagebox.showerror("Error", "All fields are required.")
             return
@@ -406,10 +400,9 @@ def update_user_by_id(collection, user_id):
             messagebox.showerror("Error", "Invalid city name. It should contain only letters and spaces.")
             return
 
-        # Update the user in the database
         collection.update_one({"_id": user_id}, {"$set": updated_data})
         messagebox.showinfo("Success", "User updated successfully.")
-        root.destroy()  # Close the GUI window after updating the use
+        root.destroy()
 
     # Fetch the user data by ID
     user = collection.find_one({"_id": user_id})
@@ -428,11 +421,10 @@ def update_user_by_id(collection, user_id):
     style.configure('TButton', font=('Arial', 16))
 
 
-    # GUI elements for user input
     label_first_name = tk.Label(root, text="First Name:")
     label_first_name.pack()
     entry_first_name = tk.Entry(root)
-    entry_first_name.insert(0, user.get('first_name', ''))  # Populate the field with the existing value
+    entry_first_name.insert(0, user.get('first_name', ''))  # set the default value to the current value
     entry_first_name.pack()
 
     label_last_name = tk.Label(root, text="Last Name:")
@@ -480,14 +472,11 @@ def update_user_by_id(collection, user_id):
 
 def update_user_gui(collection):
     user_id_str = input(f"{PROMPT_COLOR}Enter user ID to update: {RESET_COLOR}")
-
     try:
         user_id = bson.ObjectId(user_id_str)
     except bson.errors.InvalidId:
         print(f"{OUTPUT_COLOR}Invalid user ID format. Please enter a valid hexadecimal ID.")
         return
-
-    # Call the update_user_by_id function to handle the GUI part
     update_user_by_id(collection, user_id)
 
 # Menu options
@@ -511,25 +500,25 @@ menu_options = {
 
 # Display menu
 def display_menu():
-    print(MENU_COLOR + "Statistical Reports Menu:")
+    print(MENU_COLOR + "Data Analysis Menu:")
     for option, description in menu_options.items():
         print(OPTION_COLOR + f"{option}. {description[1]}")
 
-# User input for menu selection
+# User input selection
 def get_user_choice():
-    selected_option = input(PROMPT_COLOR + "Select an option (1-11): ")
-    print(RESET_COLOR)  # Reset colorama style
+    selected_option = input(PROMPT_COLOR + "Select an option (1-15): ")
+    print(RESET_COLOR)
     return selected_option
 
-# Validate and execute selected option
+# validate and run selected option
 def execute_option(option):
     if option in menu_options:
         selected_function, _ = menu_options[option]
         selected_function(collection)
     else:
-        print(OPTION_COLOR + "Invalid option selected.")
+        print(OPTION_COLOR + "invalid option selected.")
 
-# Main program
+#main
 if __name__ == "__main__":
     collection = connect_to_mongodb()
 
